@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>殺戮関数</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            margin: 0; background: #e8e6da; color: #333; 
+            font-family: 'Courier New', Courier, monospace; 
+            overflow: hidden; display: flex; justify-content: center; align-items: center; 
+            height: 100vh; width: 100vw; touch-action: manipulation;
+        }
+        .screen { display: none; width: 100%; height: 100%; position: relative; }
+        .active-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        
+        canvas { 
+            background: #f4f2e8; border: 2px solid #888; 
+            box-shadow: 5px 5px 15px rgba(0,0,0,0.1); 
+            max-width: 100vw; max-height: 100vh; 
+            object-fit: contain; 
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        }
+        
+        .menu-container {
+            width: 100%; max-width: 700px; height: 100%; max-height: 800px; 
+            background: #f4f2e8; border: 2px solid #888; box-shadow: 5px 5px 15px rgba(0,0,0,0.1); 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            padding: 20px; overflow-y: auto;
+        }
+        
+        h1.title-logo { 
+            font-size: clamp(32px, 10vw, 64px); 
+            margin-bottom: 30px; color: #333; border-bottom: 4px dashed #888; 
+            padding-bottom: 10px; letter-spacing: 5px; text-align: center;
+        }
+        h2 { color: #333; border-bottom: 2px dashed #888; padding-bottom: 10px; width: 100%; text-align: center; font-size: clamp(20px, 6vw, 24px); margin-top: 0;}
+        
+        .btn {
+            display: block; width: 100%; max-width: 300px; padding: 15px; margin: 10px 0; 
+            background: #f0eee4; border: 2px solid #888; color: #333; cursor: pointer; 
+            text-align: center; font-size: 16px; font-weight: bold; transition: all 0.1s;
+            border-radius: 4px; appearance: none; 
+        }
+        @media (hover: hover) {
+            .btn:hover:not(:disabled) { background: #e0dec4; border-color: #333; }
+            .option-btn:hover:not(:disabled) { background: #e0dec4; border-color: #333; }
+            #remove-btn:hover { background: #c07070; }
+            #reroll-btn:hover:not(:disabled) { background: #357abd; border-color: #285e8e; }
+        }
+        .btn:active:not(:disabled), .option-btn:active:not(:disabled) { background: #d0ceb4; }
+        .btn:disabled, .option-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .back-btn { margin-top: 20px; background: #ddd; }
+
+        .list-container { width: 100%; flex-grow: 1; max-height: 50vh; overflow-y: auto; text-align: left; padding: 10px; border: 1px solid #ccc; background: #fffdf5; }
+        .list-item { border-bottom: 1px dashed #ccc; padding: 10px 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;}
+        
+        .char-select-container { display: flex; gap: 20px; width: 100%; justify-content: center; flex-wrap: wrap; margin-bottom: 10px;}
+        .char-card {
+            flex: 1; min-width: 260px; padding: 20px; border-radius: 8px; text-align: left;
+            display: flex; flex-direction: column;
+        }
+        .char-card.eq { background: #fffdf5; border: 2px solid #ccc; }
+        .char-card.ineq { background: #f0f8ff; border: 2px solid #a0c8e0; }
+        .char-card h3 { text-align: center; margin-top: 0; font-size: 22px; }
+        .char-card p { font-size: 13px; line-height: 1.6; flex-grow: 1; margin: 10px 0 20px 0; }
+        .char-card .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; margin-bottom: 10px; width: 100%; text-align: center;}
+
+        #game-ui { 
+            position: absolute; top: 10px; left: 10px; pointer-events: none; 
+            width: calc(100% - 20px); max-width: 380px; z-index: 10;
+            background: rgba(244, 242, 232, 0.85); 
+            padding: 10px; border-radius: 8px; border: 1px solid rgba(136, 136, 136, 0.5);
+        }
+        
+        .bar-container { width: 100%; height: 8px; background: #ddd; margin-bottom: 5px; border: 1px solid #888; }
+        #hp-bar { height: 100%; background: #d66060; transition: width 0.2s; } 
+        #xp-bar { height: 100%; background: #60d6a0; transition: width 0.2s; } 
+        
+        #level-up-modal, #game-over-modal { 
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+            background: #fcfaf2; padding: 20px; border: 3px solid #666; display: none; text-align: center; 
+            pointer-events: auto; width: 95%; max-width: 420px; max-height: 90vh; overflow-y: auto;
+            border-radius: 4px; box-shadow: 5px 5px 20px rgba(0,0,0,0.3); z-index: 20;
+        }
+        
+        .option-btn { display: block; width: 100%; padding: 12px; margin: 10px 0; background: #f0eee4; border: 2px solid #888; color: #333; cursor: pointer; text-align: left; transition: all 0.1s; border-radius: 4px;}
+        
+        .type-badge { display: inline-block; padding: 3px 6px; background: #90a0d0; color: #fff; font-size: 10px; margin-right: 8px; border-radius: 2px; font-weight: bold; vertical-align: middle; }
+        .type-badge.stat { background: #d0a060; }
+        .type-badge.target { background: #80c090; }
+        .type-badge.mod { background: #b090d0; }
+        .type-badge.target-mod { background: #e09040; box-shadow: 0 0 5px rgba(224, 144, 64, 0.5); }
+        .type-badge.rare { background: #d0a060; box-shadow: 0 0 5px rgba(208, 160, 96, 0.8); }
+        .type-badge.base { background: #50a0a0; }
+        
+        #reroll-btn { background: #4a90e2; border-color: #357abd; text-align: center; font-weight: bold; color: #fff; }
+        #reroll-btn:active:not(:disabled) { background: #285e8e; }
+        #reroll-btn:disabled { background: #bbb; border-color: #999; color: #fff; }
+        #remove-btn { background: #d08a8a; border-color: #a05050; text-align: center; font-weight: bold; color: #fff; }
+        #remove-btn:active { background: #a04040; }
+        
+        .global-xp-display { font-size: 16px; font-weight: bold; color: #8a6d50; margin-bottom: 10px; text-align: center;}
+    </style>
+</head>
+<body>
+
+    <div id="title-screen" class="screen active-screen">
+        <div class="menu-container">
+            <h1 class="title-logo">殺戮関数</h1>
+            <button class="btn" onclick="showScreen('char-select-screen')">ゲームを始める</button>
+            <button class="btn" onclick="showScreen('upgrade-screen'); updateUpgradeUI();">自分の強化</button>
+            <button class="btn" onclick="showScreen('encyclopedia-screen'); initEncyclopedia('eq');">関数の図鑑</button>
+        </div>
+    </div>
+
+    <div id="char-select-screen" class="screen">
+        <div class="menu-container" style="max-width: 800px;">
+            <h2>キャラクター選択</h2>
+            <div class="char-select-container">
+                <div class="char-card eq">
+                    <h3 style="color: #333;"><span style="font-size: 28px; vertical-align: middle;">＝</span> 等号キャラ</h3>
+                    <div class="badge" style="background: #e0e0e0; color: #333;">軌道描画・一撃必殺</div>
+                    <p style="color: #555;">数学の関数を用いて「線（軌道）」を描画し、触れた敵を切り裂くキャラクターです。<br><br>弾幕のように線を張り巡らせたり、極太のレーザーを放つなど、幾何学的な模様で敵をなぎ倒します。</p>
+                    <button class="btn" style="width: 100%; margin: 0;" onclick="startGame('eq')">出撃する</button>
+                </div>
+                <div class="char-card ineq">
+                    <h3 style="color: #285e8e;"><span style="font-size: 28px; vertical-align: middle;">＜</span> 不等号キャラ</h3>
+                    <div class="badge" style="background: #cce0ff; color: #285e8e;">領域展開・継続ダメージ</div>
+                    <p style="color: #446688;">不等式を用いて画面を塗りつぶし、指定した「面（領域）」に侵入した敵へ継続的にダメージを与えます。<br><br>敵の進路を塞ぐようにダメージゾーンを配置していく制圧型の戦術が得意です。</p>
+                    <button class="btn" style="width: 100%; margin: 0; background: #4a90e2; color: #fff; border-color: #357abd;" onclick="startGame('ineq')">出撃する</button>
+                </div>
+            </div>
+            <button class="btn back-btn" onclick="showScreen('title-screen')">タイトルへ戻る</button>
+        </div>
+    </div>
+
+    <div id="upgrade-screen" class="screen">
+        <div class="menu-container">
+            <h2>自分の強化</h2>
+            <div class="global-xp-display">所持XP: <span id="global-xp-val">0</span></div>
+            <div class="list-container" id="upgrade-list"></div>
+            <button class="btn back-btn" onclick="showScreen('title-screen')">タイトルへ戻る</button>
+        </div>
+    </div>
+
+    <div id="encyclopedia-screen" class="screen">
+        <div class="menu-container">
+            <h2>関数の図鑑</h2>
+            <div style="display:flex; gap:10px; margin-bottom:10px; width:100%;">
+                <button class="btn" style="margin:0; padding:8px;" onclick="initEncyclopedia('eq')">等号 [＝]</button>
+                <button class="btn" style="margin:0; padding:8px; background: #e0f0ff; border-color: #a0c8e0;" onclick="initEncyclopedia('ineq')">不等号 [＜]</button>
+            </div>
+            <div class="list-container" id="dict-list"></div>
+            <button class="btn back-btn" onclick="showScreen('title-screen')">タイトルへ戻る</button>
+        </div>
+    </div>
+
+    <div id="game-screen" class="screen">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="game-ui">
+            <div style="font-size: 14px; font-weight: bold; color: #333;">
+                Lv: <span id="lv-val">1</span> | Time: <span id="time-val">0:00</span> | Type: <span id="type-val"></span>
+            </div>
+            <div class="bar-container"><div id="hp-bar" style="width: 100%;"></div></div>
+            <div class="bar-container"><div id="xp-bar" style="width: 0%;"></div></div>
+            <div id="stats-list" style="font-size: 11px; color: #8a6d50; margin-bottom: 5px; font-weight: bold;"></div>
+            <div id="formula-list" style="font-size: 11px; color: #444; line-height: 1.4; white-space: pre-wrap;"></div>
+        </div>
+
+        <div id="level-up-modal">
+            <h2 id="modal-title" style="margin-top:0;">LEVEL UP!</h2>
+            <p id="modal-desc" style="color:#666; font-size: 14px;">報酬を選択してください：</p>
+            <div id="options"></div>
+            <button id="reroll-btn" class="option-btn" style="display: none;"></button>
+            <button id="remove-btn" class="option-btn" style="display: none;">
+                ⚠️ 既存の要素を一つ削除する
+            </button>
+        </div>
+
+        <div id="game-over-modal">
+            <h2 id="modal-title-go" style="color:#d06060; border-bottom:none;">GAME OVER</h2>
+            <div id="result-stats" style="font-size: 14px; line-height: 2; margin-bottom: 15px;"></div>
+            <div style="font-size: 18px; font-weight: bold; color: #60d6a0; margin-bottom: 15px;">
+                獲得 XP: <span id="result-xp">0</span>
+            </div>
+            <button class="btn" style="width: 100%; margin: 0 auto;" onclick="returnToTitle()">タイトルへ戻る</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        let animationId;
+        let lastFrameTime = 0;
+
+        let pointerCoords = { x: 400, y: 300 };
+        function updatePointer(clientX, clientY) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            pointerCoords.x = (clientX - rect.left) * scaleX;
+            pointerCoords.y = (clientY - rect.top) * scaleY;
+        }
+        window.addEventListener('mousemove', e => updatePointer(e.clientX, e.clientY));
+        window.addEventListener('touchmove', e => updatePointer(e.touches[0].clientX, e.touches[0].clientY), {passive: true});
+        window.addEventListener('touchstart', e => updatePointer(e.touches[0].clientX, e.touches[0].clientY), {passive: true});
+
+        let globalData = { xp: 0, upgrades: { hp: 0, atk: 0, spd: 0, reroll: 0 } };
+        function loadData() { 
+            try { 
+                const saved = localStorage.getItem('satsuriku-data'); 
+                if (saved) {
+                    let parsed = JSON.parse(saved);
+                    globalData.xp = parsed.xp || 0;
+                    if(parsed.upgrades) {
+                        globalData.upgrades.hp = parsed.upgrades.hp || 0;
+                        globalData.upgrades.atk = parsed.upgrades.atk || 0;
+                        globalData.upgrades.spd = parsed.upgrades.spd || 0;
+                        globalData.upgrades.reroll = parsed.upgrades.reroll || 0;
+                    }
+                } 
+            } catch(e) {} 
+        }
+        function saveData() { try { localStorage.setItem('satsuriku-data', JSON.stringify(globalData)); } catch(e) {} }
+        loadData();
+
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(el => el.classList.remove('active-screen'));
+            document.getElementById(screenId).classList.add('active-screen');
+        }
+
+        let gameState = {};
+
+        const ddxHtml = "<span style='display:inline-flex; flex-direction:column; vertical-align:middle; text-align:center; font-size:10px; line-height:1; margin-right:3px;'><span style='padding:0 2px;'>d</span><span style='border-top:1px solid currentColor; padding:0 2px;'>dx</span></span>";
+        const intHtml = "<span style='font-size:14px; font-weight:bold;'>∫</span>";
+
+        const upgradesEq = [
+            { type: "variable", weight: 10, name: "変数: 最寄りの敵 (CLO)", shortName: "CLO", code: "CLO", desc: "グラフの基準を最寄りの敵にする" },
+            { type: "variable", weight: 10, name: "変数: ランダム (RAN)", shortName: "RAN", code: "RAN", desc: "グラフの基準をランダムな敵にする" },
+            { type: "variable", weight: 10, name: "変数: 敵の重心 (AVG)", shortName: "AVG", code: "AVG", desc: "画面内の敵の密集地を基準にする" },
+            { type: "variable", weight: 10, name: "変数: ポインタ (PTR)", shortName: "PTR", code: "PTR", desc: "タップやカーソルの位置を基準にする" },
+            
+            { type: "target_mod", weight: 10, name: "射出 (Launch)", shortName: "Launch", code: "LAUNCH", desc: "【動的基準点】攻撃がプレイヤーから基準点へ向かって飛んでいく" },
+
+            { type: "formula", weight: 10, name: "円の方程式 (Circle)", shortName: "Circle", code: "CIRCLE", desc: "軌道のベースを半径80の円形にする" },
+            { type: "formula", weight: 10, name: "バラ曲線 (r=cos kθ)", shortName: "r=cos(kθ)", code: "ROSE", desc: "花びら状のグラフ。重ねると花びらが増加" },
+            { type: "formula", weight: 10, name: "Sine Wave (sin)", shortName: "sin(x)", code: "Math.sin(x/20)*30", desc: "横に波打つ軌道を追加" },
+            { type: "formula", weight: 8,  name: "Abs Sine Wave |sin|", shortName: "|sin(x)|", code: "Math.abs(Math.sin(x/30))*50", desc: "地面を跳ねるような軌道を追加" },
+            { type: "formula", weight: 8,  name: "Exponential (exp)", shortName: "exp(x)", code: "Math.exp(x/100)*10", desc: "片側が急激に跳ね上がる壁のような軌道" },
+            { type: "formula", weight: 8,  name: "Logarithm (log)", shortName: "log(x)", code: "Math.log(Math.abs(x/10)+1)*30", desc: "中心付近で鋭く突き刺さる軌道" },
+            { type: "formula", weight: 8,  name: "Sigmoid (1/1+e^-x)", shortName: "Sigmoid", code: "(1/(1+Math.exp(-x/40)))*100 - 50", desc: "階段のような段差のある軌道" },
+            { type: "formula", weight: 10, name: "Parabola (x²)", shortName: "x²", code: "(x*x)/200", desc: "放物線の軌道を追加" },
+            { type: "formula", weight: 10, name: "Random Noise", shortName: "Noise", code: "(RAN_x * 0.1)", desc: "ランダムな敵の座標を干渉させる" },
+            { type: "formula", weight: 2,  name: "Tangent Wave (tan)", shortName: "tan(x)", code: "TAN", desc: "【レア】横縞のように激しく振動する軌道" },
+            
+            { type: "modifier", weight: 10, name: `${ddxHtml} (反転)`, shortName: "d/dx", code: "INVERT", desc: "関数の描画を上下に反転させる" },
+            { type: "modifier", weight: 10, name: `${intHtml} (積分)`, shortName: "∫", code: "INT", desc: "攻撃力と太さが激増するが、描画間隔が長くなる" },
+            { type: "modifier", weight: 8,  name: "lim (極限)", shortName: "lim", code: "LIM", desc: "関数が画面端を突き抜け、反対側からループする" },
+            { type: "modifier", weight: 8,  name: "i (虚数)", shortName: "i", code: "IMG", desc: "影の軌道を追加。触れた敵は次に受けるダメージが2倍" },
+            { type: "modifier", weight: 6,  name: "Σ (総和)", shortName: "Σ", code: "SIGMA", desc: "軌道をY軸に複製し、3重の弾幕にする" },
+            
+            { type: "stat", weight: 10, name: "攻撃力UP (Atk+)", shortName: "Atk+", desc: "グラフが与えるダメージ +0.2", action: () => gameState.player.damage += 0.2 },
+            { type: "stat", weight: 10, name: "描画速度UP (Spd+)", shortName: "Spd+", desc: "関数の描画スピードが上がる", action: () => gameState.player.attackInterval = Math.max(3, gameState.player.attackInterval - 2) },
+            { type: "stat", weight: 10, name: "太さUP (Width+)", shortName: "Width+", desc: "グラフの線と当たり判定が太くなる", action: () => gameState.player.lineWidth += 2 }
+        ];
+
+        const upgradesIneq = [
+            { type: "variable", weight: 10, name: "変数: 最寄りの敵 (CLO)", shortName: "CLO", code: "CLO", desc: "領域の基準を最寄りの敵にする" },
+            { type: "variable", weight: 10, name: "変数: ランダム (RAN)", shortName: "RAN", code: "RAN", desc: "領域の基準をランダムな敵にする" },
+            { type: "variable", weight: 10, name: "変数: 敵の重心 (AVG)", shortName: "AVG", code: "AVG", desc: "画面内の敵の密集地を基準にする" },
+            { type: "variable", weight: 10, name: "変数: ポインタ (PTR)", shortName: "PTR", code: "PTR", desc: "タップやカーソルの位置を基準にする" },
+            
+            { type: "target_mod", weight: 10, name: "射出 (Launch)", shortName: "Launch", code: "LAUNCH", desc: "【動的基準点】領域がプレイヤーから基準点へ向かって飛んでいく" },
+
+            { type: "base", weight: 10, name: "下部領域 (y < f(x))", shortName: "y<f(x)", code: "BASE_LESS", desc: "基準より【下】を塗りつぶす領域にする" },
+            { type: "base", weight: 10, name: "円形領域 (x²+y² < R²)", shortName: "Circle Area", code: "BASE_CIRCLE", desc: "基準の【周囲】を塗りつぶす領域にする" },
+            
+            { type: "formula", weight: 10, name: "Sine 波面 (sin)", shortName: "sin(x)", code: "SIN_AREA", desc: "領域の境界を波打たせる" },
+            { type: "formula", weight: 10, name: "Parabola 谷 (x²)", shortName: "x²", code: "PARA_AREA", desc: "領域の境界をU字型にくぼませる" },
+            { type: "formula", weight: 10, name: "Noise 浸食", shortName: "Noise", code: "NOISE_AREA", desc: "領域の境界をランダムに荒らす" },
+            { type: "formula", weight: 8,  name: "Step 階段 (floor)", shortName: "floor(x)", code: "STEP_AREA", desc: "領域の境界を階段状にする" },
+            { type: "formula", weight: 2,  name: "Tangent Wave (tan)", shortName: "tan(x)", code: "TAN_AREA", desc: "【レア】横縞のように激しく振動する境界" },
+            
+            { type: "modifier", weight: 10, name: "NOT (反転)", shortName: "NOT", code: "INVERT_INEQ", desc: "不等号を反転させる (上⇔下、内⇔外)" },
+            { type: "modifier", weight: 10, name: "帯域化 (Band)", shortName: "Band", code: "BAND_INEQ", desc: "領域を境界線付近の『帯』に限定し威力を1.5倍にする" },
+            { type: "modifier", weight: 8, name: "持続化 (Persist)", shortName: "Persist", code: "PERSIST", desc: "領域が画面に長く残り続け、継続ダメージを与える" },
+            
+            { type: "stat", weight: 10, name: "攻撃力UP (Atk+)", shortName: "Atk+", desc: "領域が与える継続ダメージ +0.1", action: () => gameState.player.damage += 0.1 },
+            { type: "stat", weight: 10, name: "展開速度UP (Spd+)", shortName: "Spd+", desc: "領域の発生スピードが上がる", action: () => gameState.player.attackInterval = Math.max(5, gameState.player.attackInterval - 2) },
+            { type: "stat", weight: 10, name: "持続時間UP (Dur+)", shortName: "Dur+", desc: "領域が画面に残る時間が延びる", action: () => gameState.player.durationBonus = (gameState.player.durationBonus || 0) + 15 }
+        ];
+
+        function initEncyclopedia(type) {
+            const list = document.getElementById('dict-list');
+            list.innerHTML = '';
+            const pool = type === 'eq' ? upgradesEq : upgradesIneq;
+            
+            pool.forEach(u => {
+                if (u.type === 'stat') re
